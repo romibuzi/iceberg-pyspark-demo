@@ -1,0 +1,47 @@
+version: '3.5'
+
+services:
+  minio:
+    image: minio/minio
+    networks:
+      - local
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    entrypoint: sh
+    command: -c 'mkdir -p /data/warehouse && minio server --console-address ":9001" /data'
+
+  postgres:
+    image: postgres:15.1
+    networks:
+      - local
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: iceberg_db
+    ports:
+      - "5432:5432"
+
+  pyspark_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./iceberg-pyspark:/opt/spark/work-dir/
+    networks:
+      - local
+    depends_on:
+      - minio
+      - postgres
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 3G
+
+networks:
+  local:
+    driver: bridge
